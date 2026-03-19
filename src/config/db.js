@@ -25,6 +25,6 @@ const allsessions = db.prepare("SELECT * FROM upload_session  ").all();
 
 console.log(allUsers);
 // console.log(allfiles);
-console.log(allsessions);
+// console.log(allsessions);
 
 export default db;
