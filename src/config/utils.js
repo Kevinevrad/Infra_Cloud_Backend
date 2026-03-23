@@ -81,6 +81,6 @@ export const createUser = (name, email, role, password, allUsers, dbName) => {
       "INSERT INTO users (name,email,role, password) VALUES(?,?,?,?)",
     );
     insertUser.run(name, email, role, password);
-    dbName.close();
+    // dbName.close();
   }
 };

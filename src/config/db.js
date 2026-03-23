@@ -16,6 +16,7 @@ sqlRequests.forEach((request) => {
 const allUsers = db.prepare("SELECT * FROM users").all();
 const allfiles = db.prepare("SELECT * FROM files").all();
 const allsessions = db.prepare("SELECT * FROM upload_session  ").all();
+
 // prettier-ignore
 // createUser("Evrad", "evradassoko99@gmail.com","admin", "Ass@k@9922", allUsers, db);
 // db.prepare("DROP TABLE upload_session ADD COLUMN mimetype TEXT;").run();
