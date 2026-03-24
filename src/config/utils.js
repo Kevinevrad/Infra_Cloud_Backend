@@ -6,7 +6,7 @@ export const sqlRequests = [
     name TEXT NOT NULL UNIQUE,
     email TEXT NOT NULL UNIQUE ,
     password TEXT NOT NULL UNIQUE, 
-    role TEXT NOT NULL UNIQUE,
+    role TEXT DEFAULT "user",
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
 
   // TODO : EXCHANGES TABLE -- -----------

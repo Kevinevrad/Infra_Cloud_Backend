@@ -2,7 +2,7 @@ import express from "express";
 import { verifyToken } from "../middlewares/verifyToken.js";
 import { v4 as uuidv4 } from "uuid";
 import db from "../config/db.js";
-import upload from "../config/multer.js";
+import upload from "../middlewares/multer.js";
 import path from "path";
 import fs from "fs";
 
