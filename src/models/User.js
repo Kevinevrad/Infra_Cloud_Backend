@@ -39,7 +39,7 @@ const User = {
 
   //  * UPDATE USER
 
-  update: (id, { email, password }) => {
+  update: (id, { name, email, password }) => {
     const stmt = db.prepare(`UPDATE users SET name=?, email=?, WHERE id=?`);
     return stmt.run(id, name, email);
   },

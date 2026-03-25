@@ -12,7 +12,7 @@ if (!fs.existsSync(dir)) {
 }
 
 const db = new Database(dbPath, {
-  verbose: (msg) => console.log("SQL: BD CREATED"),
+  // verbose: (msg) => console.log("SQL: BD CREATED"),
 });
 
 db.pragma("journal_mode = WAL");
