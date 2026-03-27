@@ -2,7 +2,7 @@
 export const sqlRequests = [
   // TODO : USERS TABLE -- --------------
   `CREATE TABLE IF NOT EXISTS users(
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id TEXT UNIQUE,
     name TEXT NOT NULL UNIQUE,
     email TEXT NOT NULL UNIQUE ,
     password TEXT NOT NULL UNIQUE, 

@@ -5,6 +5,14 @@ import { fileURLToPath } from "url";
 import path from "path";
 
 const uploadDir = path.join(process.cwd(), "./src/storage/uploads");
+const allowedTypes = [
+  "application/zip",
+  "application/x-zip-compressed",
+  "application/x-rar-compressed",
+  "application/vnd.rar",
+];
+
+const allowedExtensions = [".zip", ".rar"];
 
 // Vérifie si le dossier existe sinon le crée
 if (!fs.existsSync(uploadDir)) {
@@ -36,21 +44,17 @@ const storage = multer.diskStorage({
 
 // FILE FILTER CONFIGURATION
 const fileFilter = (req, file, callBack) => {
-  // const allowedTypes = [
-  //   "image/jpeg",
-  //   "image/png",
-  //   "application/pdf",
-  // "application/msword",
-  //   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-
-  // ];
-  // if (allowedTypes.includes(file.mimetype)) {
-  //   callBack(null, true);
-  // } else {
-  //   callBack(new Error("❌ Type de fichier non autorisé !"), false);
-  // }
-  callBack(null, true); // * Accepter tous les types de fichiers (à ajuster selon vos besoins)
+  if (allowedTypes.includes(file.mimetype)) {
+    callBack(null, true);
+  } else {
+    callBack(new Error("❌ Type de fichier non autorisé !"), false);
+  }
+  // callBack(null, true); // * Accepter tous les types de fichiers (à ajuster selon vos besoins)
 };
 
-const upload = multer({ storage: storage, fileFilter: fileFilter });
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 export default upload;

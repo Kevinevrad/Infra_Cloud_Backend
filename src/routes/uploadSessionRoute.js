@@ -7,61 +7,46 @@ import path from "path";
 import fs from "fs";
 
 import { fileURLToPath } from "url";
+import uploadSessionController from "../controllers/uploadSessionController.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-router.post("/init-session", verifyToken, upload.single("file"), (req, res) => {
-  const { userId } = req.user;
-  const sessionId = uuidv4();
-  const { originalname, size, mimetype } = req.file;
-
-  if (!originalname || !size) {
-    return res
-      .status(400)
-      .json({ error: "❌ File name & File size are required !" });
-  }
-
-  db.prepare(
-    "INSERT INTO upload_session (file_name,file_size, mimetype,user_id,session_id) VALUES (?,?,?,?,?)",
-  ).run(originalname, size, mimetype, userId, sessionId);
-
-  res.status(200).json({
-    idSession: sessionId,
-  });
-});
+// prettier-ignore
+router.post("/init-session", verifyToken, upload.single("file"), uploadSessionController.init);
 
 router.put(
   "/chunk/:sessionId",
   express.raw({ limit: "50mb", type: "*/*" }),
-  (req, res) => {
-    const sessionId = req.params.sessionId;
-    const chunkIndex = req.headers["chunk-index"];
+  // (req, res) => {
+  //   const sessionId = req.params.sessionId;
+  //   const chunkIndex = req.headers["chunk-index"];
 
-    try {
-      if (!chunkIndex) {
-        return res.status(400).json({ message: "chunk-index manquant" });
-      }
+  //   try {
+  //     if (!chunkIndex) {
+  //       return res.status(400).json({ message: "chunk-index manquant" });
+  //     }
 
-      const chunkDir = path.join(__dirname, "../storage/chunks", sessionId);
+  //     const chunkDir = path.join(__dirname, "../storage/chunks", sessionId);
 
-      if (!fs.existsSync(chunkDir)) {
-        fs.mkdirSync(chunkDir, { recursive: true });
-      }
-      const chunkName = `chunk_${String(chunkIndex).padStart(6, "0")}`;
-      const chunkPath = path.join(chunkDir, chunkName);
-      fs.writeFileSync(chunkPath, req.body);
+  //     if (!fs.existsSync(chunkDir)) {
+  //       fs.mkdirSync(chunkDir, { recursive: true });
+  //     }
+  //     const chunkName = `chunk_${String(chunkIndex).padStart(6, "0")}`;
+  //     const chunkPath = path.join(chunkDir, chunkName);
+  //     fs.writeFileSync(chunkPath, req.body);
 
-      res.json({
-        message: "Chunk reçu",
-        chunk: chunkName,
-      });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  },
+  //     res.json({
+  //       message: "Chunk reçu",
+  //       chunk: chunkName,
+  //     });
+  //   } catch (error) {
+  //     res.status(500).json({ error: error.message });
+  //   }
+  // },
+  uploadSessionController.inProgress,
 );
 
 router.post("/complete/:sessionId", (req, res) => {

@@ -17,9 +17,13 @@ const db = new Database(dbPath, {
 
 db.pragma("journal_mode = WAL");
 
-// TODO : CREATE TABLES
-sqlRequests.forEach((request) => {
-  db.prepare(request).run();
-});
+// db.prepare(`SELECT * FROM db`).run();
 
+// // TODO : CREATE TABLES
+// sqlRequests.forEach((request) => {
+//   db.prepare(request).run();
+// });
+
+console.log(db.prepare(`SELECT * FROM users`).get());
+// db.prepare(`DROP TABLE users`).run();
 export default db;

@@ -1,5 +1,6 @@
 import db from "../config/db.js";
 import bcrypt from "bcryptjs";
+import { v4 as uuidv4 } from "uuid";
 
 const User = {
   //  * TROUVER UN UTILISATEUR VIA SON EMAIL
@@ -18,13 +19,18 @@ const User = {
   createUser: ({ name, email, role, password }) => {
     const hashedPassword = bcrypt.hashSync(password, 9);
     const stmt = db.prepare(`
-      INSERT INTO users (name, email, role, password)
-      VALUES (?, ?, ?, ?)
+      INSERT INTO users (id,name, email, role, password)
+      VALUES (?, ?, ?, ?,?)
     `);
 
-    const result = stmt.run(name, email, role || "user", hashedPassword);
+    const result = stmt.run(
+      uuidv4(),
+      name,
+      email,
+      role || "user",
+      hashedPassword,
+    );
     return {
-      id: result.lastInsertRowid,
       name,
       email,
       role,
