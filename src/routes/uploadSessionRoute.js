@@ -19,33 +19,7 @@ router.post("/init-session", verifyToken, upload.single("file"), uploadSessionCo
 
 router.put(
   "/chunk/:sessionId",
-  express.raw({ limit: "50mb", type: "*/*" }),
-  // (req, res) => {
-  //   const sessionId = req.params.sessionId;
-  //   const chunkIndex = req.headers["chunk-index"];
-
-  //   try {
-  //     if (!chunkIndex) {
-  //       return res.status(400).json({ message: "chunk-index manquant" });
-  //     }
-
-  //     const chunkDir = path.join(__dirname, "../storage/chunks", sessionId);
-
-  //     if (!fs.existsSync(chunkDir)) {
-  //       fs.mkdirSync(chunkDir, { recursive: true });
-  //     }
-  //     const chunkName = `chunk_${String(chunkIndex).padStart(6, "0")}`;
-  //     const chunkPath = path.join(chunkDir, chunkName);
-  //     fs.writeFileSync(chunkPath, req.body);
-
-  //     res.json({
-  //       message: "Chunk reçu",
-  //       chunk: chunkName,
-  //     });
-  //   } catch (error) {
-  //     res.status(500).json({ error: error.message });
-  //   }
-  // },
+  express.raw({ limit: "100mb", type: "*/*" }),
   uploadSessionController.inProgress,
 );
 
@@ -62,8 +36,6 @@ router.post("/complete/:sessionId", (req, res) => {
 
     const chunkDir = path.join(__dirname, "../storage/chunks", sessionId);
     const filesDir = path.join(__dirname, "../storage/files");
-
-    console.log(chunkDir);
 
     if (!fs.existsSync(chunkDir)) {
       return res.status(400).json({ message: "Aucun chunk trouvé" });

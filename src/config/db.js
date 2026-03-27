@@ -20,10 +20,10 @@ db.pragma("journal_mode = WAL");
 // db.prepare(`SELECT * FROM db`).run();
 
 // // TODO : CREATE TABLES
-// sqlRequests.forEach((request) => {
-//   db.prepare(request).run();
-// });
+sqlRequests.forEach((request) => {
+  db.prepare(request).run();
+});
 
-console.log(db.prepare(`SELECT * FROM users`).get());
-// db.prepare(`DROP TABLE users`).run();
+// console.log(db.prepare(`SELECT * FROM upload_session`).get());
+// db.prepare(`DROP TABLE upload_session`).run();
 export default db;
