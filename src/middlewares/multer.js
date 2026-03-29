@@ -1,18 +1,19 @@
 import multer from "multer";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
-import { fileURLToPath } from "url";
 import path from "path";
 
 const uploadDir = path.join(process.cwd(), "./src/storage/uploads");
-const allowedTypes = [
-  "application/zip",
-  "application/x-zip-compressed",
-  "application/x-rar-compressed",
-  "application/vnd.rar",
-];
 
-const allowedExtensions = [".zip", ".rar"];
+const ALLOWED_EXTENSIONS = [".zip", ".rar"];
+
+// Vérification du magic number (premiers octets du fichier)
+// .zip commence par PK (50 4B)
+// .rar commence par Rar! (52 61 72 21)
+const MAGIC_NUMBERS = {
+  ".zip": Buffer.from([0x50, 0x4b]),
+  ".rar": Buffer.from([0x52, 0x61, 0x72, 0x21]),
+};
 
 // Vérifie si le dossier existe sinon le crée
 if (!fs.existsSync(uploadDir)) {
@@ -25,36 +26,29 @@ const storage = multer.diskStorage({
   },
 
   filename: function (req, file, callBack) {
-    const uniqueSuffix = `${Date.now()}-${uuidv4()}`;
-    callBack(null, uniqueSuffix + "-" + file.originalname);
+    const ext = path.extname(file.originalname).toLowerCase();
+    const uniqueName = `${uuidv4()}${ext}`;
+    callBack(null, uniqueName);
   },
 });
 
-// FILE STORAGE CONFIGURATION
-// const storage = multer.diskStorage({
-//   destination: function (req, file, callBack) {
-//     callBack(null, "./src/storage/uploads/"); // * Dossier de destination pour les fichiers uploadés
-//   },
-
-//   filename: function (req, file, callBack) {
-//     const uniqueSuffix = `${Date.now()}-${uuidv4()}`;
-//     callBack(null, uniqueSuffix + "-" + file.originalname);
-//   },
-// });
-
 // FILE FILTER CONFIGURATION
 const fileFilter = (req, file, callBack) => {
-  if (allowedTypes.includes(file.mimetype)) {
-    callBack(null, true);
-  } else {
-    callBack(new Error("❌ Type de fichier non autorisé !"), false);
+  const ext = path.extname(file.originalname).toLowerCase();
+
+  if (!ALLOWED_EXTENSIONS.includes(ext)) {
+    return callBack(
+      new Error("Seuls les fichiers .zip et .rar sont acceptés"),
+      false,
+    );
   }
-  // callBack(null, true); // * Accepter tous les types de fichiers (à ajuster selon vos besoins)
+
+  callBack(null, true); // * Accepter tous les types de fichiers (à ajuster selon vos besoins)
 };
 
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 100 * 1024 * 1024 },
 });
-export default upload;
+export default { upload, MAGIC_NUMBERS };

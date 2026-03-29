@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
+import bcrypt from "bcryptjs";
 
 const authController = {
   login: async (req, res) => {
@@ -7,17 +8,16 @@ const authController = {
       const { email, password } = req.body;
       console.log(password);
 
-      const userFromDb = User.findByEmail(email);
-      console.log(userFromDb);
+      const user = User.findByEmail(email);
 
       // 🔹 Vérification utilisateur
-      if (!userFromDb) {
+      if (!user || !bcrypt.compareSync(password, user.password)) {
         return res.status(401).json({
           success: false,
-          message: "❌ No such user exist !",
+          error: "❌ Email ou mot de passe incorrect !",
         });
       }
-      const isMatch = User.verifyPassword(password, userFromDb.password);
+      const isMatch = User.verifyPassword(password, user.password);
 
       if (!isMatch) {
         return res.status(401).json({ error: "Mot de passe incorrect" });
@@ -25,9 +25,9 @@ const authController = {
 
       // 🔹 Génération du token JWT
       const payload = {
-        userId: userFromDb.id,
-        email: userFromDb.email,
-        role: userFromDb.role,
+        userId: user.id,
+        email: user.email,
+        role: user.role,
       };
 
       const secretKey = process.env.JWT_SECRET;
@@ -43,7 +43,10 @@ const authController = {
         token,
         user: {
           id: payload.userId,
+          nom: user.name,
           email: payload.email,
+          quota: user.quota,
+          espace_utilise: user.space_used,
           role: payload.role,
         },
       });
@@ -53,34 +56,6 @@ const authController = {
         message: "Internal server error",
         error: err.message,
       });
-    }
-  },
-
-  register: async (req, res) => {
-    try {
-      let { name, email, role, password } = req.body;
-
-      if (!name || !email || !password) {
-        return res.status(400).json({
-          error: "Champs obligatoires manquants",
-        });
-      }
-
-      // ROLES SECURISATIONS
-      const allowRoles = ["user", "admin"];
-      if (role && !allowRoles.includes(role)) {
-        return res.status(400).json({ error: "Rôle invalide" });
-      }
-
-      // NEW USER
-      const newUser = User.createUser({ name, email, role, password });
-
-      res.status(201).json({
-        message: "✅ User Created",
-        newUser,
-      });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
     }
   },
 

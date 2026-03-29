@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 
-export const verifyToken = (req, res, next) => {
+const requireAuth = (req, res, next) => {
   const authHeader = req.headers.authorization; // * Get the Authorization header from the request
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -26,3 +26,12 @@ export const verifyToken = (req, res, next) => {
       .json({ message: error.message || "⚠️ Invalid token !" });
   }
 };
+
+const requireAdmin = (req, res, next) => {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ error: "Accès réservé à l'administrateur" });
+  }
+  next();
+};
+
+export default { requireAuth, requireAdmin };

@@ -1,23 +1,23 @@
-import path from "path";
 import Database from "better-sqlite3";
 import { sqlRequests } from "./utils.js";
 import fs from "fs";
+import { fileURLToPath } from "url";
+import path, { dirname } from "path";
 
-const dbPath = path.resolve("../../data/dataBase.db");
-// créer le dossier si nécessaire
-const dir = path.dirname(dbPath);
-if (!fs.existsSync(dir)) {
-  fs.mkdirSync(dir, { recursive: true });
-  console.log("📁 Dossier data créé");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+console.log(__dirname);
+
+const dbFolder = path.join(__dirname, "../../data");
+
+if (!fs.existsSync(dbFolder)) {
+  fs.mkdirSync(dbFolder, { recursive: true });
 }
 
-const db = new Database(dbPath, {
-  // verbose: (msg) => console.log("SQL: BD CREATED"),
-});
+const db = new Database(__dirname + "/../../data/dataBase.db", {});
 
+db.pragma("foreign_keys = ON");
 db.pragma("journal_mode = WAL");
-
-// db.prepare(`SELECT * FROM db`).run();
 
 // // TODO : CREATE TABLES
 sqlRequests.forEach((request) => {
@@ -25,5 +25,5 @@ sqlRequests.forEach((request) => {
 });
 
 // console.log(db.prepare(`SELECT * FROM upload_session`).get());
-// db.prepare(`DROP TABLE upload_session`).run();
+// console.log(db.prepare(`SELECT * FROM users`).all());
 export default db;

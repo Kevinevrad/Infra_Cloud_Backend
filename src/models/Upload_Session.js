@@ -2,22 +2,31 @@ import { v4 as uuidv4 } from "uuid";
 import db from "../config/db.js";
 
 const UploadSession = {
-  create: ({ originalname, size, mimetype, userId }) => {
+  create: ({ originalname, total_chunks, size, mimetype, userId }) => {
     const sessionId = uuidv4();
     const stmt = db.prepare(
-      `INSERT INTO upload_session (file_name, file_size,mimetype ,user_id,session_id) VALUES (?,?,?,?,?)`,
+      `INSERT INTO upload_session (file_name, total_chunks, file_size, mimetype, user_id, session_id) VALUES (?,?,?,?,?,?)`,
     );
 
-    const session = stmt.run(originalname, size, mimetype, userId, sessionId);
+    const session = stmt.run(
+      originalname,
+      total_chunks,
+      size,
+      mimetype,
+      userId,
+      sessionId,
+    );
     return {
       id: session.lastInsertRowid,
       idSession: sessionId,
     };
   },
 
-  getSession: (id) => {
-    const stmt = db.prepare(`SELECT * FROM upload_session WHERE session_id=?`);
-    return stmt.get(id);
+  getSession: (id, userId) => {
+    const stmt = db.prepare(
+      `SELECT * FROM upload_session WHERE session_id=? AND user_id=? AND status='in_progress'`,
+    );
+    return stmt.get(id, userId);
   },
 
   updateRow: (row, rowValue, idSession) => {

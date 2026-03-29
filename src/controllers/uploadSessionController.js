@@ -79,12 +79,12 @@ const uploadSessionController = {
     try {
       const { sessionId } = req.params;
       const session = UploadSession.getSession(sessionId);
-      const { file_name, file_size, mimetype, user_id } = session;
 
       if (!session) {
         return res.status(404).json({ message: "Session non trouvée" });
       }
 
+      const { file_name, file_size, mimetype, user_id } = session;
       const chunkDir = path.join(__dirname, "../storage/chunks", sessionId);
       const filesDir = path.join(__dirname, "../storage/files");
 
@@ -102,7 +102,12 @@ const uploadSessionController = {
         .filter((f) => f.startsWith("chunk_"))
         .sort();
 
+      const finalPath = path.join(filesDir, session.file_name);
       const chunksLength = chunks.length;
+      console.log(chunksLength);
+
+      // ✅ Créer le write stream
+      const writeStream = fs.createWriteStream(finalPath);
 
       for (const chunkName of chunks) {
         const chunkPath = path.join(chunkDir, chunkName);
@@ -113,12 +118,11 @@ const uploadSessionController = {
       writeStream.end();
 
       FileBd.create({ file_name, finalPath, file_size, mimetype, user_id });
-      UploadSession.updateRow("status", "Completed", sessionId);
 
       // 6️⃣ Supprimer les chunks (optionnel)
       fs.rmSync(chunkDir, { recursive: true, force: true });
-      console.log(session);
 
+      UploadSession.updateRow("status", "Completed", sessionId);
       res.status(200).json({
         session: session,
       });
