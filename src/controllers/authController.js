@@ -6,7 +6,6 @@ const authController = {
   login: async (req, res) => {
     try {
       const { email, password } = req.body;
-      console.log(password);
 
       const user = User.findByEmail(email);
 

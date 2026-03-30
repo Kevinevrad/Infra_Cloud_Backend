@@ -2,24 +2,15 @@ import { v4 as uuidv4 } from "uuid";
 import db from "../config/db.js";
 
 const UploadSession = {
-  create: ({ originalname, total_chunks, size, mimetype, userId }) => {
+  create: ({ originalname, total_chunks, file_size, mimetype, userId }) => {
     const sessionId = uuidv4();
     const stmt = db.prepare(
       `INSERT INTO upload_session (file_name, total_chunks, file_size, mimetype, user_id, session_id) VALUES (?,?,?,?,?,?)`,
     );
 
-    const session = stmt.run(
-      originalname,
-      total_chunks,
-      size,
-      mimetype,
-      userId,
-      sessionId,
-    );
-    return {
-      id: session.lastInsertRowid,
-      idSession: sessionId,
-    };
+    // prettier-ignore
+    const session = stmt.run( originalname, total_chunks, file_size, mimetype,userId, sessionId);
+    return { id: session.lastInsertRowid, idSession: sessionId };
   },
 
   getSession: (id, userId) => {

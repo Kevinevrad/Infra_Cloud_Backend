@@ -25,5 +25,5 @@ sqlRequests.forEach((request) => {
 });
 
 // console.log(db.prepare(`SELECT * FROM upload_session`).get());
-// console.log(db.prepare(`SELECT * FROM users`).all());
+// console.log(db.prepare(`SELECT * FROM upload_session`).all());
 export default db;
