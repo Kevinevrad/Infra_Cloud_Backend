@@ -24,6 +24,6 @@ sqlRequests.forEach((request) => {
   db.prepare(request).run();
 });
 
-// console.log(db.prepare(`SELECT * FROM upload_session`).get());
-// console.log(db.prepare(`SELECT * FROM upload_session`).all());
+console.log(db.prepare(`SELECT * FROM upload_session`).all());
+// db.prepare(`DROP TABLE upload_session`).run();
 export default db;

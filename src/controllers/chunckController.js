@@ -27,7 +27,7 @@ const chunkController = {
     try {
       const { userId } = req.user;
       const { file_name, file_size, mimetype, total_chunks } = req.body;
-      console.log("DIRNAME", CHUNK_DIR);
+      log("SESSION");
 
       if (!file_name || !file_size || !total_chunks) {
         //  prettier-ignore
@@ -65,12 +65,14 @@ const chunkController = {
         userId,
       });
 
+      log("NEW SESSION", newSession);
+
       // Créer le dossier pour les chunks de cette session
       if (!fs.existsSync(CHUNK_DIR)) {
         fs.mkdirSync(CHUNK_DIR, { recursive: true });
       }
 
-      const sessionDir = path.join(CHUNK_DIR, newSession.idSession);
+      const sessionDir = path.join(CHUNK_DIR, newSession.session_id);
 
       if (!fs.existsSync(sessionDir)) {
         fs.mkdirSync(sessionDir, { recursive: true });
@@ -137,10 +139,12 @@ const chunkController = {
   },
 
   completed: async (req, res) => {
-    const sessionId = req.params.sessionId;
-    const userId = req.user.userId;
+    const { sessionId } = req.params;
+    const { userId } = req.user;
 
     const session = UploadSession.getSession(sessionId, userId);
+
+    log("SESSION", session);
 
     if (!session) {
       return res.status(404).json({ message: "Session non trouvée" });
@@ -157,12 +161,22 @@ const chunkController = {
 
     const ext = path.extname(session.file_name).toLowerCase();
     const storedName = `${uuidv4()}${ext}`;
+
     const finalPath = path.join(UPLOAD_DIR, storedName);
     const sessionDir = path.join(CHUNK_DIR, sessionId);
 
     try {
       // Récupérer les chunks triés par nom (l'ordre est garanti par le padding)
-      const chunkFiles = fs.readdirSync(sessionDir).sort();
+      // const chunkFiles = fs.readdirSync(sessionDir).sort();
+      const chunkFiles = fs.readdirSync(sessionDir).sort((a, b) => {
+        const indexA = Number(a.split("_")[1]);
+        const indexB = Number(b.split("_")[1]);
+        return indexA - indexB;
+      });
+
+      if (chunkFiles.length != session.total_chunks) {
+        throw new Error("Nombre de chunks incorrect");
+      }
 
       // Assembler chunk par chunk dans le fichier final
       const writeStream = fs.createWriteStream(finalPath);
@@ -170,7 +184,10 @@ const chunkController = {
       for (const chunkFile of chunkFiles) {
         const chunkPath = path.join(sessionDir, chunkFile);
         const data = fs.readFileSync(chunkPath);
-        writeStream.write(data);
+        if (!writeStream.write(data)) {
+          await new Promise((resolve) => writeStream.once("drain", resolve));
+        }
+        // writeStream.write(data);
       }
       writeStream.end();
 

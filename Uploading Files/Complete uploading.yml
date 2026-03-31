@@ -1,0 +1,20 @@
+info:
+  name: Complete uploading
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: http://localhost:4000/api/files/complete/6b323d54-7664-4817-92ff-242821b8b73f
+  headers:
+    - name: Authorization
+      value: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsImVtYWlsIjoiZXZyYWRhc3Nva285OUBnbWFpbC5jb20iLCJyb2xlIjoidXNlciIsImlhdCI6MTc3NDk3ODEyNSwiZXhwIjoxNzc0OTc5OTI1fQ.DOBqpyeu6xqiRNGVXs6AUFnYiffFVBaPc1yXDNwYkpQ
+  auth:
+    type: bearer
+    token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjIsImVtYWlsIjoiZXZyYWRhc3Nva285OUBnbWFpbC5jb20iLCJyb2xlIjoidXNlciIsImlhdCI6MTc3NDk3ODEyNSwiZXhwIjoxNzc0OTc5OTI1fQ.DOBqpyeu6xqiRNGVXs6AUFnYiffFVBaPc1yXDNwYkpQ
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

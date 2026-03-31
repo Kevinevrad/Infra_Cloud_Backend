@@ -1,0 +1,22 @@
+info:
+  name: Login
+  type: http
+  seq: 1
+
+http:
+  method: POST
+  url: http://localhost:4000/api/auth/login/
+  body:
+    type: json
+    data: |-
+      {
+        "email": "evradassoko99@gmail.com",
+        "password": "Ass@k@9922"
+      }
+  auth: inherit
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

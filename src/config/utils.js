@@ -58,8 +58,7 @@ export const sqlRequests = [
 
   // TODO : UPLOAD SESSION TABLE -- --------
   `CREATE TABLE IF NOT EXISTS upload_session (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL UNIQUE,
+    session_id  TEXT PRIMARY KEY NOT NULL UNIQUE,
     file_name TEXT,
     file_size INTEGER NOT NULL,
     total_chunks INTEGER NOT NULL,
