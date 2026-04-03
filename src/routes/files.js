@@ -5,8 +5,7 @@ import chunkController from "../controllers/chunckController.js";
 
 const { requireAuth, requireAdmin } = authMiddleware;
 
-import multer from "../middlewares/multer.js";
-const { upload } = multer;
+import { upload } from "../middlewares/multer.js";
 
 const router = express.Router();
 // * ROUTE POUR LE UPLOAD DE FICHIERS
@@ -25,7 +24,11 @@ router.delete("/:id", fileController.deleteFile);
 
 // Upload chunked (semaine 5)
 router.post("/init", chunkController.init);
-router.put("/chunk/:sessionId", chunkController.inProgress);
+router.put(
+  "/chunk/:sessionId",
+  express.raw({ limit: "100mb", type: "*/*" }),
+  chunkController.inProgress,
+);
 router.post("/complete/:sessionId", chunkController.completed);
 router.delete("/cancel/:sessionId", chunkController.cancelUpload);
 export default router;

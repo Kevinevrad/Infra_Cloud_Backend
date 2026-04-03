@@ -10,9 +10,9 @@ const ALLOWED_EXTENSIONS = [".zip", ".rar"];
 // Vérification du magic number (premiers octets du fichier)
 // .zip commence par PK (50 4B)
 // .rar commence par Rar! (52 61 72 21)
-const MAGIC_NUMBERS = {
-  ".zip": Buffer.from([0x50, 0x4b]),
-  ".rar": Buffer.from([0x52, 0x61, 0x72, 0x21]),
+export const MAGIC_NUMBERS = {
+  ".zip": { bytes: [0x50, 0x4b, 0x03, 0x04], offset: 0 },
+  ".rar": { bytes: [0x52, 0x61, 0x72, 0x21], offset: 0 },
 };
 
 // Vérifie si le dossier existe sinon le crée
@@ -46,9 +46,8 @@ const fileFilter = (req, file, callBack) => {
   callBack(null, true); // * Accepter tous les types de fichiers (à ajuster selon vos besoins)
 };
 
-const upload = multer({
+export const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: { fileSize: 100 * 1024 * 1024 },
 });
-export default { upload, MAGIC_NUMBERS };

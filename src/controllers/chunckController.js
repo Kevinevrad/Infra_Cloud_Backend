@@ -4,89 +4,74 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import { v4 as uuidv4 } from "uuid";
 import checkMagicNumber from "../utils/checkMagicsNumbers.js";
-
-//  Modeles et utilitaires
-import User from "../models/User.js";
-import FileBd from "../models/File.js";
-import UploadSession from "../models/Upload_Session.js";
 import { log } from "console";
+
+import UploadSession from "../models/Upload_Session.js";
 
 // Utilitaires ---------------------------
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const ALLOWED_EXTENSIONS = [".zip", ".rar"];
-const CHUNK_DIR = path.join(__dirname, "../storage/chunks/");
-const UPLOAD_DIR = path.join(__dirname, "../storage/uploads");
+const CHUNK_DIR = path.join(__dirname, "../../storage/chunks");
+const UPLOAD_DIR = path.join(__dirname, "../../storage/uploads");
 
 const chunkController = {
-  // ─────────────────────────────────────────
-  // 1. Initialiser une session d'upload
-  // ─────────────────────────────────────────
   init: (req, res) => {
-    try {
-      const { userId } = req.user;
-      const { file_name, file_size, mimetype, total_chunks } = req.body;
-      log("SESSION");
+    // ─────────────────────────────────────────
+    // 1. Initialiser une session d'upload
+    // ─────────────────────────────────────────
 
-      if (!file_name || !file_size || !total_chunks) {
-        //  prettier-ignore
-        return res.status(400).json({ error: 'file_name, file_size et total_chunks sont requis' });
-      }
+    console.log("req.body reçu :", req.body);
 
-      const ext = path.extname(file_name).toLowerCase();
+    const { file_name, file_size, total_chunks } = req.body;
 
-      if (!ALLOWED_EXTENSIONS.includes(ext)) {
-        return res
-          .status(400)
-          .json({ error: "Extension de fichier non autorisée" });
-      }
+    if (!file_name || !file_size || !total_chunks) {
+      return res
+        .status(400)
+        .json({ error: "file_name, file_size et total_chunks sont requis" });
+    }
 
-      if (total_chunks < 1 || total_chunks > 10000) {
-        return res.status(400).json({ error: "Nombre de chunks invalide" });
-      }
+    const ext = path.extname(file_name).toLowerCase();
 
-      // Vérification du quota avant même de commencer
-      const user = User.findByID(userId);
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      return res
+        .status(400)
+        .json({ error: "Seuls les fichiers .zip et .rar sont acceptés" });
+    }
 
-      if (user.quota > 0 && user.used_space + file_size > user.quota) {
-        return res.status(400).json({
-          error: "Quota dépassé",
-          available: user.quota - user.used_space,
-          fileSize: file_size,
-        });
-      }
+    if (total_chunks < 1 || total_chunks > 10000) {
+      return res.status(400).json({ error: "Nombre de chunks invalide" });
+    }
 
-      const newSession = UploadSession.create({
-        file_name,
-        total_chunks,
-        file_size,
-        mimetype,
-        userId,
-      });
+    // Vérification du quota avant de commencer
+    const user = req.user;
 
-      log("NEW SESSION", newSession);
-
-      // Créer le dossier pour les chunks de cette session
-      if (!fs.existsSync(CHUNK_DIR)) {
-        fs.mkdirSync(CHUNK_DIR, { recursive: true });
-      }
-
-      const sessionDir = path.join(CHUNK_DIR, newSession.session_id);
-
-      if (!fs.existsSync(sessionDir)) {
-        fs.mkdirSync(sessionDir, { recursive: true });
-      }
-
-      res.status(200).json({
-        message: `Session créée — envoyez ${total_chunks} chunks`,
-        newSession,
-      });
-    } catch (error) {
-      res.status(500).json({
-        error: error.message,
+    log("Utilisateur :", user);
+    if (user.quota > 0 && user.used_space + file_size > user.quota) {
+      return res.status(400).json({
+        error: "Quota insuffisant pour ce fichier",
+        available: user.quota - user.used_space,
+        fileSize: file_size,
       });
     }
+
+    const sessionId = uuidv4();
+    const sessionDir = path.join(CHUNK_DIR, sessionId);
+    fs.mkdirSync(sessionDir, { recursive: true });
+
+    db.prepare(
+      `
+    INSERT INTO upload_session
+      (user_id, session_id, file_name, file_size, total_chunks)
+    VALUES (?, ?, ?, ?, ?)
+  `,
+    ).run(req.user.userId, sessionId, file_name, file_size, total_chunks);
+
+    res.status(201).json({
+      sessionId,
+      message: `Session créée — envoyez ${total_chunks} chunks`,
+    });
   },
 
   // ─────────────────────────────────────────
@@ -96,39 +81,65 @@ const chunkController = {
   inProgress: (req, res) => {
     const { sessionId } = req.params;
     const chunkIndex = parseInt(req.headers["x-chunk-index"]);
-    const totalChunks = parseInt(req.headers["x-total-chunks"]);
 
     if (isNaN(chunkIndex) || chunkIndex < 0) {
       return res
         .status(400)
-        .json({ error: "x-chunk-index manquant ou invalide" });
+        .json({ error: "Header x-chunk-index manquant ou invalide" });
     }
 
     // Récupérer la session
     const session = UploadSession.getSession(sessionId, req.user.userId);
 
+    //   db.prepare(
+    //     `
+    //   SELECT * FROM upload_session
+    //   WHERE session_id = ? AND user_id = ? AND status = 'in_progress'
+    // `,
+    //   ).get(sessionId, req.user.userId);
+
+    log("Session trouvée :", session);
+
     if (!session) {
       return res.status(404).json({ error: "Session introuvable ou expirée" });
     }
 
-    // Écrire le chunk sur le disque
-    // Le nom est paddé (000001, 000002...) pour garantir l'ordre lors de l'assemblage
+    // Vérifier que ce chunk n'a pas déjà été reçu
     const chunkName = `chunk_${String(chunkIndex).padStart(6, "0")}`;
     const chunkPath = path.join(CHUNK_DIR, sessionId, chunkName);
 
+    if (fs.existsSync(chunkPath)) {
+      return res.status(409).json({ error: `Chunk ${chunkIndex} déjà reçu` });
+    }
+
+    // Écrire le chunk sur le disque
     const writeStream = fs.createWriteStream(chunkPath);
     req.pipe(writeStream);
 
     writeStream.on("finish", () => {
-      // Incrémenter le compteur de chunks reçus
-      UploadSession.updateRow(
-        "uploaded_chunks",
-        session.uploaded_chunks + 1,
-        sessionId,
-      );
+      // Incrémenter le compteur
+      db.prepare(
+        `
+      UPDATE upload_session
+      SET uploaded_chunks = uploaded_chunks + 1
+      WHERE session_id = ?
+    `,
+      ).run(sessionId);
+
+      // Récupérer le compteur mis à jour
+      const updated = db
+        .prepare(
+          `
+      SELECT uploaded_chunks, total_chunks FROM upload_session
+      WHERE session_id = ?
+    `,
+        )
+        .get(sessionId);
 
       res.json({
-        message: `Chunk ${chunkIndex + 1}/${session.total_chunks} reçu`,
+        message: `Chunk ${chunkIndex + 1}/${updated.total_chunks} reçu`,
+        received: updated.uploaded_chunks,
+        total: updated.total_chunks,
         chunkIndex,
       });
     });
@@ -140,106 +151,130 @@ const chunkController = {
 
   completed: async (req, res) => {
     const { sessionId } = req.params;
-    const { userId } = req.user;
 
-    const session = UploadSession.getSession(sessionId, userId);
-
-    log("SESSION", session);
+    const session = db
+      .prepare(
+        `
+    SELECT * FROM upload_session
+    WHERE session_id = ? AND user_id = ? AND status = 'in_progress'
+  `,
+      )
+      .get(sessionId, req.user.userId);
 
     if (!session) {
-      return res.status(404).json({ message: "Session non trouvée" });
+      return res
+        .status(404)
+        .json({ error: "Session introuvable ou déjà terminée" });
     }
 
-    // Vérifier que tous les chunks sont bien arrivés
+    // Vérifier que tous les chunks sont arrivés
     if (session.uploaded_chunks !== session.total_chunks) {
       return res.status(400).json({
         error: "Tous les chunks ne sont pas encore reçus",
-        reçus: session.uploaded_chunks,
-        attendus: session.total_chunks,
+        received: session.uploaded_chunks,
+        expected: session.total_chunks,
       });
     }
 
     const ext = path.extname(session.file_name).toLowerCase();
     const storedName = `${uuidv4()}${ext}`;
-
     const finalPath = path.join(UPLOAD_DIR, storedName);
     const sessionDir = path.join(CHUNK_DIR, sessionId);
 
     try {
-      // Récupérer les chunks triés par nom (l'ordre est garanti par le padding)
-      // const chunkFiles = fs.readdirSync(sessionDir).sort();
-      const chunkFiles = fs.readdirSync(sessionDir).sort((a, b) => {
-        const indexA = Number(a.split("_")[1]);
-        const indexB = Number(b.split("_")[1]);
-        return indexA - indexB;
-      });
+      // Récupérer les chunks triés par nom
+      const chunkFiles = fs.readdirSync(sessionDir).sort();
 
-      if (chunkFiles.length != session.total_chunks) {
-        throw new Error("Nombre de chunks incorrect");
+      if (chunkFiles.length !== session.total_chunks) {
+        return res.status(400).json({
+          error: "Nombre de fichiers chunks incorrect sur le disque",
+          onDisk: chunkFiles.length,
+          expected: session.total_chunks,
+        });
       }
 
-      // Assembler chunk par chunk dans le fichier final
+      // Assembler les chunks dans le fichier final
       const writeStream = fs.createWriteStream(finalPath);
 
       for (const chunkFile of chunkFiles) {
         const chunkPath = path.join(sessionDir, chunkFile);
         const data = fs.readFileSync(chunkPath);
-        if (!writeStream.write(data)) {
-          await new Promise((resolve) => writeStream.once("drain", resolve));
-        }
-        // writeStream.write(data);
+        writeStream.write(data);
       }
+
       writeStream.end();
 
+      // Attendre la fin de l'écriture
       await new Promise((resolve, reject) => {
         writeStream.on("finish", resolve);
         writeStream.on("error", reject);
       });
 
-      // Vérification du magic number sur le fichier assemblé
+      // Vérification du magic number
       const isValid = checkMagicNumber(finalPath, ext);
       if (!isValid) {
         fs.unlinkSync(finalPath);
         fs.rmSync(sessionDir, { recursive: true });
-
-        // prettier-ignore
-        UploadSession.updateRow("status", "failed", sessionId);
+        db.prepare(
+          `
+        UPDATE upload_session SET status = 'failed' WHERE session_id = ?
+      `,
+        ).run(sessionId);
         return res
           .status(400)
           .json({ error: "Le fichier assemblé est invalide ou corrompu" });
       }
 
-      // Vérification de la taille réelle vs déclarée
+      // Taille réelle du fichier assemblé
       const realSize = fs.statSync(finalPath).size;
 
-      // Vérification quota une dernière fois avec la taille réelle
-
-      const user = User.findByID(req.user.userId);
+      // Vérification quota finale avec la taille réelle
+      const user = db
+        .prepare(`SELECT quota, used_space FROM users WHERE id = ?`)
+        .get(req.user.userId);
       if (user.quota > 0 && user.used_space + realSize > user.quota) {
         fs.unlinkSync(finalPath);
         fs.rmSync(sessionDir, { recursive: true });
+        db.prepare(
+          `
+        UPDATE upload_session SET status = 'failed' WHERE session_id = ?
+      `,
+        ).run(sessionId);
         return res
           .status(400)
           .json({ error: "Quota dépassé après assemblage" });
       }
 
-      // Enregistrer en base
-      // prettier-ignore
-      const result =  FileBd.create({
-        file_name: session.file_name,
-        stored_name: storedName,
-        size: realSize,
-        ext: ext,
+      // Enregistrer le fichier en base
+      const result = db
+        .prepare(
+          `
+      INSERT INTO files (owner_id, original_name, stored_name, path, size, ext)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `,
+        )
+        .run(
+          req.user.userId,
+          session.file_name,
+          storedName,
+          finalPath,
+          realSize,
+          ext,
+        );
 
-      });
-
-      // Mettre à jour le quota utilisé
-      // prettier-ignore
-      User.updateRow(userId, { used_space: user.used_space + realSize });
+      // Mettre à jour l'espace utilisé
+      db.prepare(
+        `
+      UPDATE users SET used_space = used_space + ? WHERE id = ?
+    `,
+      ).run(realSize, req.user.userId);
 
       // Marquer la session comme terminée
-      // prettier-ignore
-      UploadSession.updateRow("status", "completed", sessionId);
+      db.prepare(
+        `
+      UPDATE upload_session SET status = 'complete' WHERE session_id = ?
+    `,
+      ).run(sessionId);
 
       // Nettoyer les chunks temporaires
       fs.rmSync(sessionDir, { recursive: true });
@@ -248,20 +283,22 @@ const chunkController = {
         message: "Fichier assemblé avec succès",
         file: {
           id: result.lastInsertRowid,
-          name: session.file_name,
-          stored_name: storedName,
+          original_name: session.file_name,
           size: realSize,
           ext,
         },
       });
-    } catch (error) {
-      // Nettoyage en cas d'erreur
+    } catch (err) {
+      console.error("Erreur assemblage :", err);
+
       if (fs.existsSync(finalPath)) fs.unlinkSync(finalPath);
       if (fs.existsSync(sessionDir)) fs.rmSync(sessionDir, { recursive: true });
 
-      // Marquer comme échouée
-      // prettier-ignore
-      UploadSession.updateRow("status", "failed", sessionId);
+      db.prepare(
+        `
+      UPDATE upload_session SET status = 'failed' WHERE session_id = ?
+    `,
+      ).run(sessionId);
 
       res.status(500).json({ error: "Erreur lors de l'assemblage du fichier" });
     }
@@ -269,24 +306,30 @@ const chunkController = {
 
   cancelUpload: (req, res) => {
     const { sessionId } = req.params;
-    const { userId } = req.user;
 
-    // prettier-ignore
-    const session =  UploadSession.getSession(sessionId,  userId);
+    const session = db
+      .prepare(
+        `
+    SELECT * FROM upload_session
+    WHERE session_id = ? AND user_id = ?
+  `,
+      )
+      .get(sessionId, req.user.id);
 
     if (!session) {
       return res.status(404).json({ error: "Session introuvable" });
     }
 
-    // Supprimer les chunks du disque
     const sessionDir = path.join(CHUNK_DIR, sessionId);
     if (fs.existsSync(sessionDir)) {
       fs.rmSync(sessionDir, { recursive: true });
     }
 
-    // Marquer comme échouée
-    // prettier-ignore
-    UploadSession.updateRow("status", "failed", sessionId);
+    db.prepare(
+      `
+    UPDATE upload_session SET status = 'failed' WHERE session_id = ?
+  `,
+    ).run(sessionId);
 
     res.json({ message: "Session annulée, chunks supprimés" });
   },
